@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="da">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>taros fødselsdags musikbingo</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            /* Brat æstetik: Arial font, alt i små bogstaver, og den rigtige neon grønne farve */
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #8ACE00;
+            color: black;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+            text-transform: lowercase;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            letter-spacing: -1.5px;
+            filter: blur(0.6px);
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .controls {
+            margin-bottom: 25px;
+        }
+
+        button {
+            background-color: black;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: lowercase;
+            letter-spacing: -0.5px;
+        }
+
+        button:active {
+            background-color: #333;
+        }
+
+        .bingo-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            max-width: 400px;
+            margin: 0 auto;
+            background-color: black;
+            border: 4px solid black;
+        }
+
+        .bingo-cell {
+            background-color: #8ACE00;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: bold;
+            word-wrap: break-word;
+            cursor: pointer;
+            letter-spacing: -0.5px;
+            transition: background-color 0.1s ease, transform 0.1s ease;
+            user-select: none;
+        }
+
+        .bingo-cell:active {
+            transform: scale(0.97);
+        }
+
+        /* Når et felt er krydset af, bliver det pink */
+        .bingo-cell.marked {
+            background-color: rgb(235, 2, 122);
+            color: black;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TAROS MUSIKBINGO</h1>
+
+    <div class="controls">
+        <button onclick="generateBoard()">generer ny plade</button>
+    </div>
+    <p>klik på feltet, når du hører sangen</p>
+    <div class="bingo-board" id="board">
+    </div>
+
+    <script>
+        const songs = [
+            "von dutch – charli xcx",
+            "sports car – tate mcrae",
+            "you & me (flume remix) – disclosure",
+            "lay all your love on me – abba",
+            "hun sagde – ukendt kunstner",
+            "needed me – rihanna",
+            "it’s ok i’m ok – tate mcrae",
+            "model – guld­dreng",
+            "gimme more – britney spears",
+            "talking body – tove lo",
+            "sexyback – justin timberlake",
+            "fergalicious – fergie",
+            "boyfriend – justin bieber",
+            "one way or another – one direction",
+            "kun for mig – medina",
+            "booty up – benny jamz / gilli",
+            "hot! – nik & jay",
+            "dancing queen – abba",
+            "veninder",
+            "habits (stay high)",
+            "i love ya pt. 2",
+            "berghain",
+            "girl, so confusing",
+            "gimme! gimme! gimme! – abba"
+        ];
+
+        let hasWon = false;
+
+        function shuffleArray(array) {
+            let shuffled = array.slice();
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // Genererer en festlig 8-bit/synth sejrslyd direkte i browseren
+        function playVictorySound() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioContext();
+
+                // Fanfare toner (C5, E5, G5, C6)
+                const fanfare = [
+                    { freq: 523.25, time: 0.0, dur: 0.12 },
+                    { freq: 659.25, time: 0.12, dur: 0.12 },
+                    { freq: 783.99, time: 0.24, dur: 0.12 },
+                    { freq: 1046.50, time: 0.36, dur: 0.45 }
+                ];
+
+                fanfare.forEach(note => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+
+                    osc.type = 'triangle'; // Festlig, klar synth tone
+                    osc.frequency.setValueAtTime(note.freq, ctx.currentTime + note.time);
+
+                    gain.gain.setValueAtTime(0, ctx.currentTime + note.time);
+                    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + note.time + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + note.time + note.dur);
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start(ctx.currentTime + note.time);
+                    osc.stop(ctx.currentTime + note.time + note.dur);
+                });
+            } catch (err) {
+                console.log("Audio ikke understøttet:", err);
+            }
+        }
+
+        // Vild konfetti-eksplosion i brat-grøn og pink
+        function fireConfetti() {
+            const colors = ['#8ACE00', '#eb027a', '#ff1493', '#000000', '#ffffff'];
+
+            // 1. Kæmpe brag i midten
+            confetti({
+                particleCount: 150,
+                spread: 100,
+                origin: { y: 0.6 },
+                colors: colors
+            });
+
+            // 2. Kanoner fra begge sider i 3.5 sekunder
+            const duration = 3500;
+            const end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 4,
+                    angle: 60,
+                    spread: 65,
+                    origin: { x: 0, y: 0.7 },
+                    colors: colors
+                });
+                confetti({
+                    particleCount: 4,
+                    angle: 120,
+                    spread: 65,
+                    origin: { x: 1, y: 0.7 },
+                    colors: colors
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        function checkWin() {
+            const markedCells = document.querySelectorAll('.bingo-cell.marked').length;
+
+            if (markedCells === 9 && !hasWon) {
+                hasWon = true;
+                playVictorySound();
+                fireConfetti();
+            } else if (markedCells < 9) {
+                hasWon = false;
+            }
+        }
+
+        function generateBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            hasWon = false;
+
+            const randomSongs = shuffleArray(songs).slice(0, 9);
+
+            randomSongs.forEach(song => {
+                const cell = document.createElement('div');
+                cell.className = 'bingo-cell';
+                cell.innerText = song;
+
+                cell.onclick = function () {
+                    this.classList.toggle('marked');
+                    checkWin();
+                };
+
+                board.appendChild(cell);
+            });
+        }
+
+        // Kør første plade ved start
+        generateBoard();
+    </script>
+
+</body>
+
+</html>
